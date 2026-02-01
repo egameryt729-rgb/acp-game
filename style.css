@@ -1,16 +1,27 @@
-body {
+body, html {
     margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden; /* Scroll bar khatam */
+    background-color: #222; /* Dark background */
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 100vh;
-    background-color: #222; /* Dark background taake game nazar aaye */
+}
+
+#game-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 canvas {
-    border: 2px solid #fff;
-    background-color: #70c5ce;
     display: block;
-    max-width: 100vw;  /* Mobile ki width ke mutabiq */
-    max-height: 90vh; /* Mobile ki height ke mutabiq */
+    background-color: #70c5ce;
+    box-shadow: 0 0 20px rgba(0,0,0,0.5); /* Thora style */
+    /* Width aur Height JS control karega taake pixel kharab na hon */
 }
