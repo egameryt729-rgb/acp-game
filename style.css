@@ -8,7 +8,9 @@ body {
 }
 
 canvas {
-    border: 4px solid #fff;
+    border: 2px solid #fff;
     background-color: #70c5ce;
     display: block;
+    max-width: 100vw;  /* Mobile ki width ke mutabiq */
+    max-height: 90vh; /* Mobile ki height ke mutabiq */
 }
