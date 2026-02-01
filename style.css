@@ -1,17 +1,18 @@
+/* Sab kuch reset kar ke screen par fit karna */
 body, html {
     margin: 0;
     padding: 0;
     width: 100%;
     height: 100%;
-    overflow: hidden; /* Scroll bar khatam */
-    background-color: #222; /* Dark background */
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    background-color: #000; /* Kali screen taake game focus mein rahe */
+    overflow: hidden; /* Scroll bars ko zabardasti band kiya */
+    touch-action: none; /* Mobile zoom rokne ke liye */
 }
 
 #game-container {
-    position: relative;
+    position: absolute;
+    top: 0;
+    left: 0;
     width: 100%;
     height: 100%;
     display: flex;
@@ -22,6 +23,6 @@ body, html {
 canvas {
     display: block;
     background-color: #70c5ce;
-    box-shadow: 0 0 20px rgba(0,0,0,0.5); /* Thora style */
-    /* Width aur Height JS control karega taake pixel kharab na hon */
+    box-shadow: 0 0 10px white; /* Halka sa border glow */
+    /* Canvas ka size ab JS control karega */
 }
