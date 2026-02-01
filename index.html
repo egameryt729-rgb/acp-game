@@ -1,10 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ACP Pradyuman Game</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        /* Ye mobile par double-tap zoom aur blue highlight ko rokta hai */
+        body {
+            touch-action: none;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+            background-color: #000;
+        }
+    </style>
 </head>
 <body>
     <div id="game-container">
