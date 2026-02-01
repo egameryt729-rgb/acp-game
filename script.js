@@ -1,16 +1,20 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-// --- 1. SMART SIZE LOGIC ---
+// --- 1. SMART SCREEN SIZE ---
 const isMobile = window.innerWidth < 800; 
 
-if (isMobile) {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-} else {
-    canvas.width = 320;
-    canvas.height = 480;
+function resizeGame() {
+    if (isMobile) {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    } else {
+        canvas.width = 320;
+        canvas.height = 480;
+    }
 }
+window.addEventListener('resize', resizeGame);
+resizeGame(); // Start mein hi size set karo
 
 // --- 2. GAME VARIABLES ---
 let gameState = 'START'; 
@@ -19,20 +23,23 @@ let acp = {
     y: 150, 
     w: 34, 
     h: 34, 
-    gravity: 0.4, 
-    lift: -7, 
+    gravity: 0.25, // Gravity thori kam ki taake control aasaan ho
+    lift: -5,      // Jump bhi smooth kiya
     velocity: 0 
 };
 let pipes = [];
-let frame = 0;
 let score = 0;
-
-// --- YAHAN HAI FIX ---
-// Agar Mobile hai to 100, lekin PC hai to wapis 150 (Mota Pipe)
-let pipeWidth = isMobile ? 100 : 150; 
+// PC par Pipe Mota (150), Mobile par Normal (80) taake rasta mile
+let pipeWidth = isMobile ? 80 : 150; 
 let bgX = 0;
 
-// --- 3. ASSETS ---
+// --- 3. FPS CONTROL (Speed Breaker) ---
+// Ye code game ko 120Hz screens par pagal hone se rokega
+let lastTime = 0;
+const fps = 60; 
+const interval = 1000 / fps; // Har frame 16ms baad chalega
+
+// --- 4. ASSETS ---
 const acpImg = new Image(); acpImg.src = 'acp.png'; 
 const pipeImg = new Image(); pipeImg.src = 'pipe.png';
 const bgImg = new Image(); bgImg.src = 'bg.png'; 
@@ -43,12 +50,13 @@ function playSound() {
     s.play().catch(() => {}); 
 }
 
-// --- 4. CONTROLS ---
+// --- 5. INPUTS ---
 function action(e) {
     if (e.cancelable) { e.preventDefault(); e.stopPropagation(); }
 
     if (gameState === 'START') {
         gameState = 'PLAYING';
+        resetGame(); // Start hotay hi position reset karo taake ground mein na phansay
     } else if (gameState === 'PLAYING') {
         acp.velocity = acp.lift;
         playSound();
@@ -59,15 +67,19 @@ function action(e) {
 }
 
 window.addEventListener('touchstart', action, { passive: false });
-window.addEventListener('mousedown', (e) => {
-    if (!isMobile) action(e);
-});
-window.addEventListener('keydown', (e) => {
-    if (e.code === 'Space') action(e);
-});
+window.addEventListener('mousedown', (e) => { if (!isMobile) action(e); });
+window.addEventListener('keydown', (e) => { if (e.code === 'Space') action(e); });
 
-// --- 5. DRAW LOOP ---
-function draw() {
+// --- 6. GAME LOOP ---
+function draw(currentTime) {
+    requestAnimationFrame(draw);
+
+    // Speed Control Logic
+    const delta = currentTime - lastTime;
+    if (delta < interval) return; // Agar game tez bhag rahi hai to roko
+    lastTime = currentTime - (delta % interval);
+
+    // Drawing Background
     ctx.drawImage(bgImg, bgX, 0, canvas.width, canvas.height);
     ctx.drawImage(bgImg, bgX + canvas.width, 0, canvas.width, canvas.height);
     
@@ -78,16 +90,28 @@ function draw() {
         acp.velocity += acp.gravity;
         acp.y += acp.velocity;
 
+        // Ceiling Limit
         if (acp.y < 0) { acp.y = 0; acp.velocity = 0; }
 
         ctx.drawImage(acpImg, acp.x, acp.y, acp.w, acp.h);
 
         // Pipe Spawning
-        let spawnRate = isMobile ? 120 : 130; 
-        if (frame % spawnRate === 0) { 
-            // Gap bhi adjust kiya: PC par mote pipe ke liye bara gap (200)
-            let gap = isMobile ? 220 : 200; 
-            
+        // Mobile par thora late pipe aye taake sambhalne ka moqa mile
+        let spawnRate = isMobile ? 180 : 150; 
+        
+        // Frame counter ki bajaye hum score ya x position use kar sakte hain, 
+        // lekin abhi simple counter use karte hain jo FPS locked hai.
+        if (score * 100 + bgX % spawnRate === 0 || Math.random() < 0.01 && pipes.length === 0) {
+             // Logic simplified below for strictly frames
+        }
+        
+        // Simple Pipe Spawn Logic based on FPS
+        // frame variable hata diya, ab hum direct push karenge agar doori kafi hai
+        let lastPipe = pipes[pipes.length - 1];
+        let minGapBetweenPipes = isMobile ? 250 : 300; // Do pipes ke darmiyan faasla
+
+        if (!lastPipe || (canvas.width - lastPipe.x > minGapBetweenPipes)) {
+            let gap = isMobile ? 200 : 220; // Upar neeche ka rasta
             let minPipe = 50;
             let maxPipe = canvas.height - gap - minPipe;
             let pipeTop = Math.random() * (maxPipe - minPipe) + minPipe;
@@ -96,7 +120,7 @@ function draw() {
         }
 
         for (let i = pipes.length - 1; i >= 0; i--) {
-            pipes[i].x -= 2; 
+            pipes[i].x -= 3; // Speed constant
             
             ctx.save();
             ctx.translate(pipes[i].x + pipeWidth/2, pipes[i].top / 2);
@@ -106,7 +130,7 @@ function draw() {
             ctx.drawImage(pipeImg, pipes[i].x, pipes[i].bottom, pipeWidth, canvas.height - pipes[i].bottom);
 
             // Hitbox Logic
-            let padding = 12; 
+            let padding = 8; 
             let acpLeft = acp.x + padding;
             let acpRight = acp.x + acp.w - padding;
             let acpTop = acp.y + padding;
@@ -124,8 +148,9 @@ function draw() {
             if (pipes[i].x < -pipeWidth) pipes.splice(i, 1);
         }
 
-        if (acp.y + acp.h > canvas.height) gameState = 'GAMEOVER';
-        frame++;
+        // GROUND COLLISION FIX
+        // Thora sa margin diya (acp.h - 5) taake touch hotay hi na mare
+        if (acp.y + acp.h - 5 > canvas.height) gameState = 'GAMEOVER';
 
         ctx.fillStyle = "white";
         ctx.font = isMobile ? "bold 30px Arial" : "bold 20px Arial";
@@ -145,7 +170,7 @@ function draw() {
             ctx.font = "bold 24px Arial";
             ctx.fillText("ACP GAME", canvas.width/2, canvas.height/2 - 20);
             ctx.font = "16px Arial";
-            ctx.fillText("Tap or Space to Start", canvas.width/2, canvas.height/2 + 20);
+            ctx.fillText("Tap to Start", canvas.width/2, canvas.height/2 + 20);
         } else {
             ctx.font = "bold 40px Arial";
             ctx.fillStyle = "#ff4444";
@@ -157,16 +182,15 @@ function draw() {
             ctx.fillText("Tap to Restart", canvas.width/2, canvas.height/2 + 60);
         }
     }
-
-    requestAnimationFrame(draw);
 }
 
 function resetGame() {
-    acp.y = canvas.height / 2; 
+    // Mobile par center mein spawn ho, ground ke qareeb nahi
+    acp.y = canvas.height / 3; 
     acp.velocity = 0; 
     pipes = []; 
     score = 0; 
-    frame = 0;
 }
 
-draw();
+// Start
+requestAnimationFrame(draw);
