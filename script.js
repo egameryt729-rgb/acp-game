@@ -1,42 +1,35 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-// --- 1. SCREEN FIT MAGIC (Ye hai wo fix) ---
-// Game ki asli resolution (jo hum chahte hain)
-const GAME_WIDTH = 320;
-const GAME_HEIGHT = 480;
+// --- 1. SMART SIZE LOGIC ---
+const isMobile = window.innerWidth < 800; 
 
-function resizeGame() {
-    // Mobile screen ki abhi ki chaudai aur lambai
-    let windowWidth = window.innerWidth;
-    let windowHeight = window.innerHeight;
-
-    let scaleX = windowWidth / GAME_WIDTH;
-    let scaleY = windowHeight / GAME_HEIGHT;
-    
-    // Jo side sab se pehle touch karegi, us hisaab se fit karo
-    let scale = Math.min(scaleX, scaleY);
-
-    canvas.style.width = (GAME_WIDTH * scale) + "px";
-    canvas.style.height = (GAME_HEIGHT * scale) + "px";
-    
-    // Internal resolution fix rakho taake pixel kharab na hon
-    canvas.width = GAME_WIDTH;
-    canvas.height = GAME_HEIGHT;
+if (isMobile) {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+} else {
+    canvas.width = 320;
+    canvas.height = 480;
 }
-
-// Jab bhi screen ghoome ya load ho, resize chalao
-window.addEventListener('resize', resizeGame);
-window.addEventListener('load', resizeGame); // Load hotay hi fit karo
-resizeGame(); // Abhi fit karo
 
 // --- 2. GAME VARIABLES ---
 let gameState = 'START'; 
-let acp = { x: 50, y: 150, w: 34, h: 34, gravity: 0.4, lift: -7, velocity: 0 };
+let acp = { 
+    x: 50, 
+    y: 150, 
+    w: 34, 
+    h: 34, 
+    gravity: 0.4, 
+    lift: -7, 
+    velocity: 0 
+};
 let pipes = [];
 let frame = 0;
 let score = 0;
-let pipeWidth = 150; 
+
+// --- YAHAN HAI FIX ---
+// Agar Mobile hai to 100, lekin PC hai to wapis 150 (Mota Pipe)
+let pipeWidth = isMobile ? 100 : 150; 
 let bgX = 0;
 
 // --- 3. ASSETS ---
@@ -50,10 +43,9 @@ function playSound() {
     s.play().catch(() => {}); 
 }
 
-// --- 4. INPUT HANDLING (No Double Taps) ---
+// --- 4. CONTROLS ---
 function action(e) {
-    // Default zoom aur scroll roko
-    if (e.cancelable) { e.preventDefault(); }
+    if (e.cancelable) { e.preventDefault(); e.stopPropagation(); }
 
     if (gameState === 'START') {
         gameState = 'PLAYING';
@@ -66,12 +58,11 @@ function action(e) {
     }
 }
 
-// Sirf ye listeners kafi hain
-window.addEventListener('touchstart', action, { passive: false }); // Mobile
-window.addEventListener('mousedown', (e) => { // PC
-    if (!('ontouchstart' in window)) action(e);
+window.addEventListener('touchstart', action, { passive: false });
+window.addEventListener('mousedown', (e) => {
+    if (!isMobile) action(e);
 });
-window.addEventListener('keydown', (e) => { // Keyboard
+window.addEventListener('keydown', (e) => {
     if (e.code === 'Space') action(e);
 });
 
@@ -81,7 +72,7 @@ function draw() {
     ctx.drawImage(bgImg, bgX + canvas.width, 0, canvas.width, canvas.height);
     
     if (gameState === 'PLAYING') {
-        bgX -= 0.5;
+        bgX -= 1; 
         if (bgX <= -canvas.width) bgX = 0;
         
         acp.velocity += acp.gravity;
@@ -91,14 +82,21 @@ function draw() {
 
         ctx.drawImage(acpImg, acp.x, acp.y, acp.w, acp.h);
 
-        if (frame % 130 === 0) { 
-            let gap = 200; 
-            let pipeTop = Math.random() * (canvas.height - gap - 100) + 50;
+        // Pipe Spawning
+        let spawnRate = isMobile ? 120 : 130; 
+        if (frame % spawnRate === 0) { 
+            // Gap bhi adjust kiya: PC par mote pipe ke liye bara gap (200)
+            let gap = isMobile ? 220 : 200; 
+            
+            let minPipe = 50;
+            let maxPipe = canvas.height - gap - minPipe;
+            let pipeTop = Math.random() * (maxPipe - minPipe) + minPipe;
+            
             pipes.push({ x: canvas.width, top: pipeTop, bottom: pipeTop + gap, passed: false });
         }
 
         for (let i = pipes.length - 1; i >= 0; i--) {
-            pipes[i].x -= 2.2;
+            pipes[i].x -= 2; 
             
             ctx.save();
             ctx.translate(pipes[i].x + pipeWidth/2, pipes[i].top / 2);
@@ -107,7 +105,8 @@ function draw() {
             ctx.restore();
             ctx.drawImage(pipeImg, pipes[i].x, pipes[i].bottom, pipeWidth, canvas.height - pipes[i].bottom);
 
-            let padding = 18; 
+            // Hitbox Logic
+            let padding = 12; 
             let acpLeft = acp.x + padding;
             let acpRight = acp.x + acp.w - padding;
             let acpTop = acp.y + padding;
@@ -119,7 +118,7 @@ function draw() {
                 }
             }
             
-            if (!pipes[i].passed && (pipes[i].x + (pipeWidth/2)) < acp.x) {
+            if (!pipes[i].passed && (pipes[i].x + pipeWidth/2) < acp.x) {
                 score++; pipes[i].passed = true;
             }
             if (pipes[i].x < -pipeWidth) pipes.splice(i, 1);
@@ -129,10 +128,10 @@ function draw() {
         frame++;
 
         ctx.fillStyle = "white";
-        ctx.font = "bold 20px Arial";
+        ctx.font = isMobile ? "bold 30px Arial" : "bold 20px Arial";
         ctx.textAlign = "left";
         ctx.shadowBlur = 4; ctx.shadowColor = "black";
-        ctx.fillText("Total Choot: " + score, 15, 35);
+        ctx.fillText("Total Choot: " + score, 20, 40);
         ctx.shadowBlur = 0;
     }
 
@@ -143,19 +142,19 @@ function draw() {
         ctx.textAlign = "center";
         
         if (gameState === 'START') {
-            ctx.font = "bold 26px Arial";
-            ctx.fillText("ACP PRADYUMAN", canvas.width/2, 200);
-            ctx.font = "18px Arial";
-            ctx.fillText("Tap to Start", canvas.width/2, 240);
-        } else {
-            ctx.font = "bold 34px Arial";
-            ctx.fillStyle = "#ff4444";
-            ctx.fillText("GAME OVER", canvas.width/2, 180);
-            ctx.fillStyle = "white";
             ctx.font = "bold 24px Arial";
-            ctx.fillText("Score: " + score, canvas.width/2, 240); 
-            ctx.font = "18px Arial";
-            ctx.fillText("Tap to Restart", canvas.width/2, 300);
+            ctx.fillText("ACP GAME", canvas.width/2, canvas.height/2 - 20);
+            ctx.font = "16px Arial";
+            ctx.fillText("Tap or Space to Start", canvas.width/2, canvas.height/2 + 20);
+        } else {
+            ctx.font = "bold 40px Arial";
+            ctx.fillStyle = "#ff4444";
+            ctx.fillText("GAME OVER", canvas.width/2, canvas.height/2 - 40);
+            ctx.fillStyle = "white";
+            ctx.font = "bold 30px Arial";
+            ctx.fillText("Score: " + score, canvas.width/2, canvas.height/2 + 10); 
+            ctx.font = "20px Arial";
+            ctx.fillText("Tap to Restart", canvas.width/2, canvas.height/2 + 60);
         }
     }
 
@@ -163,13 +162,11 @@ function draw() {
 }
 
 function resetGame() {
-    acp.y = 150; acp.velocity = 0; pipes = []; score = 0; frame = 0;
+    acp.y = canvas.height / 2; 
+    acp.velocity = 0; 
+    pipes = []; 
+    score = 0; 
+    frame = 0;
 }
 
-// Image Loading Logic
-let imagesLoaded = 0;
-const totalImages = 3;
-function checkLoad() { imagesLoaded++; if(imagesLoaded === totalImages) draw(); }
-acpImg.onload = checkLoad; pipeImg.onload = checkLoad; bgImg.onload = checkLoad;
-// Fallback
-setTimeout(() => { if(imagesLoaded < totalImages) draw(); }, 500);
+draw();
